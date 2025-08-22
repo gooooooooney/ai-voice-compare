@@ -115,7 +115,6 @@ export class OpenAIRealtimeService {
         dangerouslyAllowBrowser: true, // 允许在浏览器环境中运行
       });
       
-      
       // 创建 OpenAI Realtime WebSocket 客户端
       this.client = new OpenAIRealtimeWebSocket({ 
         model: this.options.model,

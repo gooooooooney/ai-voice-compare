@@ -45,6 +45,7 @@ app.post('/api/openai/session', async (req, res) => {
     const response = await openai.beta.realtime.sessions.create({
       model: 'gpt-4o-realtime-preview-2024-12-17',
       voice: 'alloy',
+      modalities: ['text'],
     });
 
     res.json({

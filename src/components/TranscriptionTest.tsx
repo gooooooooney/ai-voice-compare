@@ -70,6 +70,7 @@ export const TranscriptionTest = () => {
     const newManager = new TranscriptionManager({
       enableAssemblyAI: true,
       enableDeepgram: true,
+      enableOpenAI: true,
       audioOptions: {
         sampleRate: 16000,
         channels: 1,

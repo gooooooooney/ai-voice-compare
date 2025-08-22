@@ -340,6 +340,7 @@ export function RecordingControls({
         <button
           onClick={onExportResults}
           disabled={!hasTranscriptions}
+          title="导出性能对比数据（支持 JSON 和 CSV 格式）"
           className={`
             flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200
             ${hasTranscriptions
@@ -348,7 +349,7 @@ export function RecordingControls({
             }
           `}
         >
-          📊 导出结果
+          📊 导出性能对比
         </button>
 
         <button

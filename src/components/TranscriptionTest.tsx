@@ -214,10 +214,104 @@ export const TranscriptionTest = () => {
 
   // 导出结果
   const handleExportResults = useCallback(() => {
-    if (manager) {
-      manager.exportRawTranscripts();
+    // 获取性能报告
+    const report = performanceTracker.generateReport();
+    const comparison = performanceTracker.getPerformanceComparison();
+    
+    // 如果没有数据，提示用户
+    if (Object.keys(comparison).length === 0) {
+      alert('暂无性能数据可导出，请先进行录制测试。');
+      return;
     }
-  }, [manager]);
+    
+    // 准备导出数据
+    const exportData = {
+      exportTime: new Date().toISOString(),
+      summary: report.summary,
+      recommendation: report.recommendation,
+      detailedMetrics: comparison,
+      // 添加简化的对比数据以便于查看
+      comparison: Object.entries(comparison).map(([service, metrics]) => ({
+        service,
+        averageLatency: metrics.latency.averageDelay.toFixed(2) + 'ms',
+        maxLatency: metrics.latency.maxDelay.toFixed(2) + 'ms',
+        minLatency: metrics.latency.minDelay.toFixed(2) + 'ms',
+        uptime: (metrics.stability.uptime * 100).toFixed(2) + '%',
+        errorRate: (metrics.stability.errorRate * 100).toFixed(2) + '%',
+        wordCount: metrics.accuracy.wordCount,
+        characterCount: metrics.accuracy.characterCount,
+        audioQuality: metrics.session.audioQuality.toFixed(2),
+        sessionDuration: (metrics.session.duration / 1000).toFixed(2) + 's',
+      })),
+    };
+
+    // 询问用户导出格式
+    const format = window.confirm('导出为 JSON 格式？\n\n确定：JSON 格式\n取消：CSV 格式') ? 'json' : 'csv';
+    
+    if (format === 'json') {
+      // JSON 格式导出
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `performance-comparison_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } else {
+      // CSV 格式导出
+      const csvHeaders = [
+        'Service',
+        'Average Latency (ms)',
+        'Max Latency (ms)',
+        'Min Latency (ms)',
+        'Uptime (%)',
+        'Error Rate (%)',
+        'Word Count',
+        'Character Count',
+        'Audio Quality',
+        'Session Duration (s)'
+      ];
+      
+      let csvContent = csvHeaders.join(',') + '\n';
+      
+      exportData.comparison.forEach(item => {
+        const row = [
+          item.service,
+          item.averageLatency.replace('ms', ''),
+          item.maxLatency.replace('ms', ''),
+          item.minLatency.replace('ms', ''),
+          item.uptime.replace('%', ''),
+          item.errorRate.replace('%', ''),
+          item.wordCount,
+          item.characterCount,
+          item.audioQuality,
+          item.sessionDuration.replace('s', '')
+        ];
+        csvContent += row.join(',') + '\n';
+      });
+      
+      // 添加推荐信息
+      csvContent += '\n\nRecommendation\n';
+      csvContent += `Preferred Service,${report.recommendation.preferred}\n`;
+      csvContent += `Reasoning,"${report.recommendation.reasoning}"\n`;
+      csvContent += `Confidence Score,${report.recommendation.confidenceScore}%\n`;
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `performance-comparison_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }, [performanceTracker]);
 
   // 清空记录
   const handleClearHistory = useCallback(() => {

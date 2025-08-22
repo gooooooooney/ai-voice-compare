@@ -48,8 +48,6 @@ export class OpenAIRealtimeService {
   private options: Required<OpenAIRealtimeServiceOptions>;
   private lastConnectedTime: Date | null = null;
   private currentText = ''; // 累积的文本内容
-  private audioBufferTimeout: ReturnType<typeof setTimeout> | null = null; // 音频缓冲区提交定时器
-  private hasUncommittedAudio = false; // 标记是否有未提交的音频数据
 
   constructor(options: OpenAIRealtimeServiceOptions) {
     this.options = {
@@ -258,6 +256,22 @@ export class OpenAIRealtimeService {
         status: event.item?.status
       });
     });
+
+    // 监听语音检测事件（server_vad 模式）
+    this.client.on('input_audio_buffer.speech_started', (event) => {
+      console.log('🗣️ OpenAI speech started:', {
+        audio_start_ms: event.audio_start_ms,
+        item_id: event.item_id
+      });
+    });
+
+    this.client.on('input_audio_buffer.speech_stopped', (event) => {
+      console.log('🤐 OpenAI speech stopped:', {
+        audio_end_ms: event.audio_end_ms,
+        item_id: event.item_id
+      });
+      // 语音停止后，服务器会自动提交音频并触发转录
+    });
   }
 
   /**
@@ -277,6 +291,13 @@ export class OpenAIRealtimeService {
           output_audio_format: 'pcm16',
           input_audio_transcription: {
             model: 'whisper-1',
+          },
+          turn_detection: {
+            type: 'server_vad',
+            threshold: 0.5,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 200, // 200ms 静音后自动提交
+            create_response: false, // 不创建 AI 响应，只转录
           },
         },
       });
@@ -303,50 +324,14 @@ export class OpenAIRealtimeService {
       const base64 = btoa(String.fromCharCode(...bytes));
       
       // 发送音频数据到输入缓冲区
+      // 在 server_vad 模式下，服务器会自动检测语音活动并触发转录
       this.client.send({
         type: 'input_audio_buffer.append',
         audio: base64,
       });
-      
-      // 标记有未提交的音频
-      this.hasUncommittedAudio = true;
-      
-      // 清除之前的定时器
-      if (this.audioBufferTimeout) {
-        clearTimeout(this.audioBufferTimeout);
-      }
-      
-      // 设置新的定时器，500ms 后自动提交缓冲区
-      this.audioBufferTimeout = setTimeout(() => {
-        this.commitAudioBuffer();
-      }, 500);
     } catch (error) {
       console.error('❌ Failed to send audio to OpenAI Realtime:', error);
       this.notifyError(new Error(`Failed to send audio: ${error}`));
-    }
-  }
-
-  /**
-   * 提交音频缓冲区
-   */
-  private commitAudioBuffer(): void {
-    if (!this.client || this.connectionStatus !== 'connected' || !this.hasUncommittedAudio) {
-      return;
-    }
-
-    try {
-      // 提交音频缓冲区 - 这会触发自动转录
-      this.client.send({
-        type: 'input_audio_buffer.commit',
-      });
-      
-      this.hasUncommittedAudio = false;
-      this.audioBufferTimeout = null;
-      
-      console.log('📤 OpenAI audio buffer committed');
-    } catch (error) {
-      console.error('❌ Failed to commit audio buffer:', error);
-      this.notifyError(new Error(`Failed to commit audio buffer: ${error}`));
     }
   }
 
@@ -362,12 +347,6 @@ export class OpenAIRealtimeService {
       if (this.reconnectTimeout) {
         clearTimeout(this.reconnectTimeout);
         this.reconnectTimeout = null;
-      }
-      
-      // 清除音频缓冲区定时器
-      if (this.audioBufferTimeout) {
-        clearTimeout(this.audioBufferTimeout);
-        this.audioBufferTimeout = null;
       }
 
       if (this.client) {

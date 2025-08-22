@@ -159,17 +159,17 @@ export class OpenAIRealtimeService {
       this.configureSession();
     });
 
-    // 接收转录结果
-    this.client.on('response.text.delta', (event) => {
+    // 接收转录增量结果
+    this.client.on('conversation.item.input_audio_transcription.delta', (event) => {
       try {
-        console.log('response.text.delta', event);
+        console.log('conversation.item.input_audio_transcription.delta', event);
         
         // 累积文本内容
         this.currentText += event.delta;
         
         // 创建转录结果
         const result: TranscriptionResult = {
-          text: event.delta,
+          text: event.delta || '',
           confidence: 0, // OpenAI Realtime 不提供置信度
           isFinal: false, // delta 表示部分结果
           timestamp: Date.now(),
@@ -178,20 +178,21 @@ export class OpenAIRealtimeService {
 
         this.notifyTranscript(result);
       } catch (error) {
-        console.error('❌ Error processing OpenAI Realtime transcript:', error);
-        this.notifyError(new Error(`Error processing transcript: ${error}`));
+        console.error('❌ Error processing OpenAI Realtime transcript delta:', error);
+        this.notifyError(new Error(`Error processing transcript delta: ${error}`));
       }
     });
 
     // 接收完整的转录结果
-    this.client.on('response.text.done', () => {
+    this.client.on('conversation.item.input_audio_transcription.completed', (event) => {
       try {
-        console.log('response.text.done');
+        console.log('conversation.item.input_audio_transcription.completed', event);
         
-        if (this.currentText.trim()) {
+        // 使用 event.transcript 而不是累积的文本
+        if (event.transcript && event.transcript.trim()) {
           // 创建最终转录结果
           const result: TranscriptionResult = {
-            text: this.currentText,
+            text: event.transcript,
             confidence: 0, // OpenAI Realtime 不提供置信度
             isFinal: true,
             timestamp: Date.now(),
@@ -204,9 +205,18 @@ export class OpenAIRealtimeService {
         // 重置累积文本
         this.currentText = '';
       } catch (error) {
-        console.error('❌ Error processing OpenAI Realtime final transcript:', error);
-        this.notifyError(new Error(`Error processing final transcript: ${error}`));
+        console.error('❌ Error processing OpenAI Realtime transcript completed:', error);
+        this.notifyError(new Error(`Error processing transcript completed: ${error}`));
       }
+    });
+
+    // 监听转录失败事件
+    this.client.on('conversation.item.input_audio_transcription.failed', (event) => {
+      console.error('❌ OpenAI Realtime transcription failed:', event);
+      this.notifyError(new Error(`Transcription failed: ${event.error?.message || 'Unknown error'}`));
+      
+      // 重置累积文本
+      this.currentText = '';
     });
 
     // 连接关闭
@@ -239,6 +249,15 @@ export class OpenAIRealtimeService {
     this.client.on('session.created', (event) => {
       console.log('📊 OpenAI Realtime session created:', event.session);
     });
+
+    // 监听对话项创建事件（用于调试）
+    this.client.on('conversation.item.created', (event) => {
+      console.log('🎤 OpenAI conversation item created:', {
+        type: event.item?.type,
+        role: event.item?.role,
+        status: event.item?.status
+      });
+    });
   }
 
   /**
@@ -252,17 +271,12 @@ export class OpenAIRealtimeService {
       this.client.send({
         type: 'session.update',
         session: {
-          modalities: ["audio",'text'], // 支持音频输入和文本输出
+          modalities: ['text'], // 只输出文本，不输出音频
+          instructions: 'You are a transcription service. Only transcribe audio, do not respond or answer questions.',
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
           input_audio_transcription: {
             model: 'whisper-1',
-          },
-          turn_detection: {
-            type: 'server_vad',
-            threshold: 0.5,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 200,
           },
         },
       });
@@ -321,18 +335,9 @@ export class OpenAIRealtimeService {
     }
 
     try {
-      // 提交音频缓冲区
+      // 提交音频缓冲区 - 这会触发自动转录
       this.client.send({
         type: 'input_audio_buffer.commit',
-      });
-      
-      // 创建响应请求以触发转录
-      this.client.send({
-        type: 'response.create',
-        response: {
-          modalities: ['text'], // 只请求文本响应
-          instructions: 'Transcribe the audio input.',
-        },
       });
       
       this.hasUncommittedAudio = false;

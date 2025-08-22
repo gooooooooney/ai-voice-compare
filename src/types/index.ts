@@ -20,6 +20,17 @@ export interface TranscriptionResult {
 }
 
 /**
+ * 原始转录数据存储接口
+ */
+export interface RawTranscriptData {
+  id: string;
+  service: ServiceType;
+  timestamp: number;
+  rawData: any; // 保存原始API响应
+  processedResult: TranscriptionResult;
+}
+
+/**
  * 服务连接状态
  */
 export interface ServiceConnection {
@@ -89,6 +100,9 @@ export interface AppState {
     assemblyai: TranscriptionResult[];
     deepgram: TranscriptionResult[];
   };
+
+  // 原始转录数据存储
+  rawTranscripts: RawTranscriptData[];
   
   // 性能指标
   metrics: {

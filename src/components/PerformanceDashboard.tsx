@@ -70,10 +70,6 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
     return `${Math.round(latency)}ms`;
   };
 
-  const formatConfidence = (confidence: number | undefined) => {
-    if (confidence === undefined || confidence === 0) return '-%';
-    return `${Math.round(confidence * 100)}%`;
-  };
 
   const formatAudioQuality = (quality: number | undefined) => {
     if (quality === undefined) return '-';
@@ -111,12 +107,6 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="text-sm text-gray-600">平均置信度</div>
-          <div className="text-2xl font-bold text-green-600">
-            {formatConfidence(serviceStats?.recentConfidenceAvg)}
-          </div>
-        </div>
 
         <div className="space-y-2">
           <div className="text-sm text-gray-600">总转录数</div>
@@ -203,7 +193,7 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">实时性能对比</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 延迟对比 */}
             <div className="text-center">
               <div className="text-sm text-gray-600 mb-2">延迟对比</div>
@@ -224,25 +214,6 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
               </div>
             </div>
 
-            {/* 置信度对比 */}
-            <div className="text-center">
-              <div className="text-sm text-gray-600 mb-2">置信度对比</div>
-              <div className="space-y-1">
-                {availableServices.map(service => {
-                  const confidence = stats[service]?.recentConfidenceAvg || 0;
-                  const isWinner = confidence >= Math.max(...availableServices.map(s => stats[s]?.recentConfidenceAvg || 0));
-                  return (
-                    <div key={service} className={`flex items-center justify-between p-2 rounded ${isWinner ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
-                      <span className="text-sm capitalize">{service === 'assemblyai' ? 'AssemblyAI' : 'Deepgram'}</span>
-                      <span className={`font-medium ${isWinner ? 'text-green-600' : 'text-gray-600'}`}>
-                        {formatConfidence(confidence)}
-                        {isWinner && ' 🏆'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* 稳定性对比 */}
             <div className="text-center">

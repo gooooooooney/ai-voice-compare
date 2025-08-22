@@ -3,7 +3,7 @@
  * 基于 Deepgram JavaScript SDK 的流式转录实现
  */
 
-import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
+import { createClient, DeepgramClient, ListenLiveClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 import { CONNECTION_CONFIG, ERROR_MESSAGES } from '@/constants';
 import { ServiceType, ConnectionStatus, TranscriptionResult } from '@/types';
 
@@ -29,8 +29,8 @@ export interface ConnectionCallback {
 }
 
 export class DeepgramService {
-  private client: any | null = null;
-  private connection: any | null = null;
+  private client: DeepgramClient | null = null;
+  private connection: ListenLiveClient | null = null;
   private connectionStatus: ConnectionStatus = 'disconnected';
   private reconnectAttempts = 0;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -40,14 +40,14 @@ export class DeepgramService {
   private errorCallbacks: ErrorCallback[] = [];
   private connectionCallbacks: ConnectionCallback[] = [];
   
-  private options: Required<DeepgramServiceOptions>;
+  private options: DeepgramServiceOptions;
   private lastConnectedTime: Date | null = null;
 
   constructor(options: DeepgramServiceOptions) {
     this.options = {
       apiKey: options.apiKey,
-      model: options.model || 'nova-2',
-      language: options.language || 'zh-cn',
+      model: options.model || 'nova-3',
+      language: options.language,
       punctuate: options.punctuate ?? true,
       diarize: options.diarize ?? false,
       smartFormat: options.smartFormat ?? true,
@@ -85,7 +85,7 @@ export class DeepgramService {
       // 建立实时转录连接
       this.connection = this.client.listen.live({
         model: this.options.model,
-        language: this.options.language,
+        // language: this.options.language,
         punctuate: this.options.punctuate,
         diarize: this.options.diarize,
         smart_format: this.options.smartFormat,
@@ -127,7 +127,7 @@ export class DeepgramService {
     });
 
     // 接收转录结果
-    this.connection.on(LiveTranscriptionEvents.Transcript, (data: any) => {
+    this.connection.on(LiveTranscriptionEvents.Transcript, (data) => {
       try {
         const channel = data.channel;
         const alternatives = channel.alternatives;
@@ -142,7 +142,7 @@ export class DeepgramService {
           if (transcript && transcript.trim() !== '') {
             const result: TranscriptionResult = {
               text: transcript,
-              confidence: alternative.confidence || 0,
+              confidence: 0, // Deepgram confidence scores are not reliable for comparison
               isFinal: data.is_final || false,
               timestamp: Date.now(),
               service: 'deepgram',

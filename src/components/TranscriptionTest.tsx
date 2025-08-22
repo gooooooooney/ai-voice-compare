@@ -204,8 +204,10 @@ export const TranscriptionTest = () => {
 
   // 导出结果
   const handleExportResults = useCallback(() => {
-    setShowResultsSummary(true);
-  }, []);
+    if (manager) {
+      manager.exportRawTranscripts();
+    }
+  }, [manager]);
 
   // 清空记录
   const handleClearHistory = useCallback(() => {
@@ -224,7 +226,8 @@ export const TranscriptionTest = () => {
           transcriptions: {
             assemblyai: [],
             deepgram: [],
-          }
+          },
+          rawTranscripts: [],
         });
       }
     }

@@ -40,11 +40,6 @@ function ServicePanel({ service, results, isRecording, volume = 0 }: ServicePane
     return service === 'assemblyai' ? 'blue' : 'purple';
   };
 
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return 'text-green-600 bg-green-50';
-    if (confidence >= 0.6) return 'text-yellow-600 bg-yellow-50';
-    return 'text-red-600 bg-red-50';
-  };
 
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -74,9 +69,6 @@ function ServicePanel({ service, results, isRecording, volume = 0 }: ServicePane
   const latestFinalText = getLatestFinalText();
   const currentPartialText = getCurrentPartialText();
   const totalWords = results.filter(r => r.isFinal).reduce((total, r) => total + r.text.split(' ').length, 0);
-  const avgConfidence = results.length > 0 
-    ? results.reduce((sum, r) => sum + r.confidence, 0) / results.length 
-    : 0;
 
   return (
     <div className={`bg-white rounded-lg shadow-md border-t-4 border-${color}-500 h-full flex flex-col`}>
@@ -97,16 +89,10 @@ function ServicePanel({ service, results, isRecording, volume = 0 }: ServicePane
         </div>
         
         {/* 统计信息 */}
-        <div className="grid grid-cols-3 gap-4 text-center">
+        <div className="grid grid-cols-2 gap-4 text-center">
           <div>
             <div className="text-xs text-gray-500">词汇数</div>
             <div className="text-sm font-semibold text-gray-700">{totalWords}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500">平均置信度</div>
-            <div className={`text-sm font-semibold px-2 py-1 rounded-full ${getConfidenceColor(avgConfidence)}`}>
-              {Math.round(avgConfidence * 100)}%
-            </div>
           </div>
           <div>
             <div className="text-xs text-gray-500">音量</div>
@@ -175,9 +161,6 @@ function ServicePanel({ service, results, isRecording, volume = 0 }: ServicePane
                     <div className="flex items-start justify-between mb-1">
                       <span className="text-xs text-gray-500">
                         {formatTimestamp(result.timestamp)}
-                      </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${getConfidenceColor(result.confidence)}`}>
-                        {Math.round(result.confidence * 100)}%
                       </span>
                     </div>
                     <div className="text-sm text-gray-900">

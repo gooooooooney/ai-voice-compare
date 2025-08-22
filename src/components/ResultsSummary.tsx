@@ -76,7 +76,6 @@ export function ResultsSummary({ performanceTracker, isVisible, onClose }: Resul
 
     const headers = [
       'Service',
-      'Average Confidence',
       'Word Count',
       'Character Count',
       'Average Latency',
@@ -93,13 +92,8 @@ export function ResultsSummary({ performanceTracker, isVisible, onClose }: Resul
       const metrics = comparison[service];
       if (!metrics) return [];
 
-      const avgConfidence = metrics.accuracy.confidence.length > 0
-        ? metrics.accuracy.confidence.reduce((sum, c) => sum + c, 0) / metrics.accuracy.confidence.length
-        : 0;
-
       return [
         service.toUpperCase(),
-        avgConfidence.toFixed(3),
         metrics.accuracy.wordCount.toString(),
         metrics.accuracy.characterCount.toString(),
         metrics.latency.averageDelay.toFixed(1),
@@ -153,21 +147,6 @@ export function ResultsSummary({ performanceTracker, isVisible, onClose }: Resul
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           <tr>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">平均置信度</td>
-            {services.map(service => {
-              const metrics = comparison[service];
-              const avgConfidence = metrics?.accuracy.confidence.length 
-                ? metrics.accuracy.confidence.reduce((sum, c) => sum + c, 0) / metrics.accuracy.confidence.length
-                : 0;
-              return (
-                <td key={service} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {formatPercentage(avgConfidence)}
-                </td>
-              );
-            })}
-          </tr>
-          
-          <tr className="bg-gray-50">
             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">平均延迟</td>
             {services.map(service => {
               const metrics = comparison[service];
@@ -286,17 +265,7 @@ export function ResultsSummary({ performanceTracker, isVisible, onClose }: Resul
                   
                   <div className="space-y-4">
                     <MetricCard title="准确性指标">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600">平均置信度:</span>
-                          <br />
-                          <span className="font-medium">
-                            {metrics.accuracy.confidence.length 
-                              ? formatPercentage(metrics.accuracy.confidence.reduce((sum, c) => sum + c, 0) / metrics.accuracy.confidence.length)
-                              : '0%'
-                            }
-                          </span>
-                        </div>
+                      <div className="grid grid-cols-1 gap-4 text-sm">
                         <div>
                           <span className="text-gray-600">转录词汇:</span>
                           <br />

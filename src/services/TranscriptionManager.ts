@@ -13,7 +13,8 @@ import {
   TranscriptionResult, 
   AppState, 
   ServiceConnection,
-  RecordingStatus 
+  RecordingStatus,
+  RawTranscriptData
 } from '@/types';
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/constants';
 
@@ -133,6 +134,7 @@ export class TranscriptionManager {
         assemblyai: [],
         deepgram: [],
       },
+      rawTranscripts: [],
       metrics: {
         assemblyai: {},
         deepgram: {},
@@ -169,6 +171,7 @@ export class TranscriptionManager {
 
       this.assemblyAIService.onTranscript((result) => {
         this.addTranscriptionResult('assemblyai', result);
+        this.storeRawTranscript('assemblyai', null, result); // AssemblyAI doesn't provide raw data in current setup
         this.notifyTranscript('assemblyai', result);
       });
 
@@ -185,6 +188,7 @@ export class TranscriptionManager {
 
       this.deepgramService.onTranscript((result) => {
         this.addTranscriptionResult('deepgram', result);
+        this.storeRawTranscript('deepgram', null, result); // Deepgram doesn't provide raw data in current setup
         this.notifyTranscript('deepgram', result);
       });
 
@@ -293,6 +297,9 @@ export class TranscriptionManager {
       // 等待所有服务断开
       await Promise.allSettled(disconnectionPromises);
       
+      // 关闭麦克风
+      this.audioRecorder.stopMediaStream();
+      
       console.log('✅ Services disconnected');
       
     } catch (error) {
@@ -378,6 +385,9 @@ export class TranscriptionManager {
       // 等待所有服务断开
       await Promise.allSettled(disconnectionPromises);
 
+      // 关闭麦克风
+      this.audioRecorder.stopMediaStream();
+
       this.isRecording = false;
       this.updateAudioStatus('idle');
       
@@ -453,6 +463,32 @@ export class TranscriptionManager {
         ...this.currentState.transcriptions,
         [service]: updatedResults,
       },
+    });
+  }
+
+  /**
+   * 存储原始转录数据
+   */
+  private storeRawTranscript(service: ServiceType, rawData: any, processedResult: TranscriptionResult): void {
+    const rawTranscriptData: RawTranscriptData = {
+      id: `${service}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      service,
+      timestamp: processedResult.timestamp,
+      rawData,
+      processedResult,
+    };
+
+    const updatedRawTranscripts = [...this.currentState.rawTranscripts];
+    
+    // 保持最近的 200 条原始记录
+    if (updatedRawTranscripts.length >= 200) {
+      updatedRawTranscripts.shift();
+    }
+    
+    updatedRawTranscripts.push(rawTranscriptData);
+
+    this.updateState({
+      rawTranscripts: updatedRawTranscripts,
     });
   }
 
@@ -625,6 +661,35 @@ export class TranscriptionManager {
     const assemblyAIConnected = !this.assemblyAIService || this.currentState.connections.assemblyai.status === 'connected';
     const deepgramConnected = !this.deepgramService || this.currentState.connections.deepgram.status === 'connected';
     return assemblyAIConnected && deepgramConnected;
+  }
+
+  /**
+   * 导出原始转录数据为 JSON 文件
+   */
+  exportRawTranscripts(): void {
+    const data = {
+      exportTime: new Date().toISOString(),
+      sessionInfo: {
+        duration: this.isRecording ? Date.now() - (this.currentState.rawTranscripts[0]?.timestamp || Date.now()) : 0,
+        totalTranscripts: this.currentState.rawTranscripts.length,
+        services: this.getAvailableServices(),
+      },
+      rawTranscripts: this.currentState.rawTranscripts,
+    };
+
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transcripts_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log('✅ Raw transcripts exported successfully');
   }
 
   /**

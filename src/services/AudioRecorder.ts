@@ -200,6 +200,20 @@ export class AudioRecorder {
   }
 
   /**
+   * 停止媒体流并关闭麦克风
+   */
+  stopMediaStream(): void {
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach(track => {
+        track.stop();
+        console.log('🎤 麦克风已关闭');
+      });
+      this.mediaStream = null;
+      this.hasPermission = false;
+    }
+  }
+
+  /**
    * 添加音频数据回调
    */
   onAudioData(callback: AudioDataCallback): void {

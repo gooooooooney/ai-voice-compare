@@ -121,12 +121,8 @@ export class PerformanceTracker {
     const sessionDuration = now.getTime() - this.sessionStartTime.getTime();
     
     // 计算准确率指标
-    const confidenceScores = data.transcriptionResults
-      .filter(r => r.isFinal)
-      .map(r => r.confidence);
-    
     const accuracy = {
-      confidence: confidenceScores,
+      confidence: [],
       wordCount: this.calculateWordCount(data.transcriptionResults),
       characterCount: this.calculateCharacterCount(data.transcriptionResults),
     };
@@ -190,9 +186,7 @@ export class PerformanceTracker {
     
     return {
       totalTranscriptions: data.transcriptionResults.length,
-      recentConfidenceAvg: recentResults.length > 0 
-        ? average(recentResults.map(r => r.confidence)) 
-        : 0,
+      recentConfidenceAvg: 0,
       currentLatencyAvg: recentLatencies.length > 0 
         ? average(recentLatencies) 
         : 0,
@@ -375,19 +369,13 @@ export class PerformanceTracker {
 
       let score = 0;
       
-      // 准确率评分 (40%)
-      const avgConfidence = metric.accuracy.confidence.length > 0 
-        ? average(metric.accuracy.confidence) 
-        : 0;
-      score += avgConfidence * 0.4;
-
-      // 延迟评分 (30%)
+      // 延迟评分 (50%)
       const latencyScore = Math.max(0, 1 - (metric.latency.averageDelay / 3000)); // 3秒为基准
-      score += latencyScore * 0.3;
+      score += latencyScore * 0.5;
 
-      // 稳定性评分 (30%)
+      // 稳定性评分 (50%)
       const stabilityScore = metric.stability.uptime * (1 - metric.stability.errorRate);
-      score += stabilityScore * 0.3;
+      score += stabilityScore * 0.5;
 
       scores[service] = score;
       
@@ -404,12 +392,10 @@ export class PerformanceTracker {
     const worstMetric = worstService ? metrics[worstService] : null;
 
     if (bestMetric && worstMetric) {
-      const confDiff = average(bestMetric.accuracy.confidence) - average(worstMetric.accuracy.confidence);
       const latencyDiff = worstMetric.latency.averageDelay - bestMetric.latency.averageDelay;
       const stabilityDiff = bestMetric.stability.uptime - worstMetric.stability.uptime;
 
       const reasons: string[] = [];
-      if (confDiff > 0.1) reasons.push(`准确率更高(+${Math.round(confDiff * 100)}%)`);
       if (latencyDiff > 200) reasons.push(`延迟更低(-${Math.round(latencyDiff)}ms)`);
       if (stabilityDiff > 0.1) reasons.push(`稳定性更好(+${Math.round(stabilityDiff * 100)}%)`);
 
@@ -435,14 +421,11 @@ export class PerformanceTracker {
       const metric = metrics[service];
       if (!metric) continue;
 
-      const avgConfidence = metric.accuracy.confidence.length > 0 
-        ? Math.round(average(metric.accuracy.confidence) * 100)
-        : 0;
       const avgLatency = Math.round(metric.latency.averageDelay);
       const uptime = Math.round(metric.stability.uptime * 100);
 
       summaryParts.push(
-        `${service.toUpperCase()}: 准确率 ${avgConfidence}%, 延迟 ${avgLatency}ms, 稳定性 ${uptime}%`
+        `${service.toUpperCase()}: 延迟 ${avgLatency}ms, 稳定性 ${uptime}%`
       );
     }
 

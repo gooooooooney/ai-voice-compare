@@ -118,7 +118,7 @@ export class AssemblyAIService {
       console.log('turn', data);
       const result: TranscriptionResult = {
         text: data.transcript || '',
-        confidence: 1.0, // AssemblyAI streaming doesn't provide confidence in turn events
+        confidence: 0, // AssemblyAI streaming doesn't provide confidence scores
         isFinal: true, // Turn events represent complete turns
         timestamp: Date.now(),
         service: 'assemblyai',

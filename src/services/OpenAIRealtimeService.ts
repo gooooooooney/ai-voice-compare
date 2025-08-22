@@ -252,7 +252,7 @@ export class OpenAIRealtimeService {
       this.client.send({
         type: 'session.update',
         session: {
-          modalities: ['text'], // 支持文本输出
+          modalities: ["audio",'text'], // 支持音频输入和文本输出
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
           input_audio_transcription: {

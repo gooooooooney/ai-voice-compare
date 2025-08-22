@@ -1,6 +1,12 @@
 /**
  * OpenAI 实时转录服务
  * 基于 OpenAI Realtime API 的流式转录实现
+ * 
+ * 安全警告：此服务在浏览器环境中运行，使用 dangerouslyAllowBrowser 标志。
+ * 请确保：
+ * 1. API 密钥不要硬编码在前端代码中
+ * 2. 使用环境变量管理敏感信息
+ * 3. 考虑通过后端代理来保护 API 密钥
  */
 
 import { OpenAIRealtimeWebSocket } from 'openai/beta/realtime/websocket';
@@ -53,10 +59,10 @@ export class OpenAIRealtimeService {
     this.validateApiKey();
     
     // 创建 OpenAI 客户端 - 用于后端 API 调用
-    this.openaiClient = new OpenAI({
-      apiKey: this.options.apiKey,
-      // 不设置 dangerouslyAllowBrowser，只在后端使用
-    });
+    // this.openaiClient = new OpenAI({
+    //   apiKey: this.options.apiKey,
+    //   dangerouslyAllowBrowser: true, // 允许在浏览器环境中运行
+    // });
   }
 
   /**
@@ -67,6 +73,31 @@ export class OpenAIRealtimeService {
         this.options.apiKey.includes('your_') || 
         this.options.apiKey.includes('_here')) {
       throw new Error('Invalid OpenAI API key. Please check your environment variables.');
+    }
+  }
+
+  /**
+   * 获取临时会话令牌
+   */
+  private async getSessionToken(): Promise<{ sessionKey: string }> {
+    try {
+      const baseUrl = window.location.origin;
+      const response = await fetch(`${baseUrl}/api/openai/session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get session token: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to get session token:', error);
+      throw error;
     }
   }
 
@@ -82,16 +113,14 @@ export class OpenAIRealtimeService {
 
       this.setConnectionStatus('connecting');
       
+      // 获取临时会话令牌
+      const { sessionKey } = await this.getSessionToken();
+      
       // 创建 OpenAI Realtime WebSocket 客户端
       this.client = new OpenAIRealtimeWebSocket({ 
         model: this.options.model,
+        apiKey: sessionKey, // 使用会话令牌而不是 API 密钥
       });
-      
-      // 设置 API key 通过环境变量或客户端配置
-      if (this.openaiClient) {
-        // 将 API key 设置到全局环境中，如果 OpenAI 需要的话
-        (globalThis as any).OPENAI_API_KEY = this.options.apiKey;
-      }
 
       // 设置事件监听器
       this.setupEventListeners();

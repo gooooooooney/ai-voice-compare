@@ -1,0 +1,34 @@
+# 不需要格式化的文件和目录
+node_modules
+dist
+build
+.next
+.nuxt
+.vscode
+.idea
+
+# 自动生成的文件
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 日志文件
+*.log
+
+# 环境文件
+.env*
+
+# 图片和媒体文件
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
+*.ico
+*.woff
+*.woff2
+*.ttf
+*.eot
+
+# 文档
+*.md

@@ -48,6 +48,8 @@ export class OpenAIRealtimeService {
   private options: Required<OpenAIRealtimeServiceOptions>;
   private lastConnectedTime: Date | null = null;
   private currentText = ''; // 累积的文本内容
+  private audioBufferTimeout: ReturnType<typeof setTimeout> | null = null; // 音频缓冲区提交定时器
+  private hasUncommittedAudio = false; // 标记是否有未提交的音频数据
 
   constructor(options: OpenAIRealtimeServiceOptions) {
     this.options = {
@@ -250,7 +252,7 @@ export class OpenAIRealtimeService {
       this.client.send({
         type: 'session.update',
         session: {
-          modalities: ['audio', 'text'], // 支持音频输入和文本输出
+          modalities: ['text'], // 支持文本输出
           input_audio_format: 'pcm16',
           output_audio_format: 'pcm16',
           input_audio_transcription: {
@@ -291,9 +293,55 @@ export class OpenAIRealtimeService {
         type: 'input_audio_buffer.append',
         audio: base64,
       });
+      
+      // 标记有未提交的音频
+      this.hasUncommittedAudio = true;
+      
+      // 清除之前的定时器
+      if (this.audioBufferTimeout) {
+        clearTimeout(this.audioBufferTimeout);
+      }
+      
+      // 设置新的定时器，500ms 后自动提交缓冲区
+      this.audioBufferTimeout = setTimeout(() => {
+        this.commitAudioBuffer();
+      }, 500);
     } catch (error) {
       console.error('❌ Failed to send audio to OpenAI Realtime:', error);
       this.notifyError(new Error(`Failed to send audio: ${error}`));
+    }
+  }
+
+  /**
+   * 提交音频缓冲区
+   */
+  private commitAudioBuffer(): void {
+    if (!this.client || this.connectionStatus !== 'connected' || !this.hasUncommittedAudio) {
+      return;
+    }
+
+    try {
+      // 提交音频缓冲区
+      this.client.send({
+        type: 'input_audio_buffer.commit',
+      });
+      
+      // 创建响应请求以触发转录
+      this.client.send({
+        type: 'response.create',
+        response: {
+          modalities: ['text'], // 只请求文本响应
+          instructions: 'Transcribe the audio input.',
+        },
+      });
+      
+      this.hasUncommittedAudio = false;
+      this.audioBufferTimeout = null;
+      
+      console.log('📤 OpenAI audio buffer committed');
+    } catch (error) {
+      console.error('❌ Failed to commit audio buffer:', error);
+      this.notifyError(new Error(`Failed to commit audio buffer: ${error}`));
     }
   }
 
@@ -309,6 +357,12 @@ export class OpenAIRealtimeService {
       if (this.reconnectTimeout) {
         clearTimeout(this.reconnectTimeout);
         this.reconnectTimeout = null;
+      }
+      
+      // 清除音频缓冲区定时器
+      if (this.audioBufferTimeout) {
+        clearTimeout(this.audioBufferTimeout);
+        this.audioBufferTimeout = null;
       }
 
       if (this.client) {

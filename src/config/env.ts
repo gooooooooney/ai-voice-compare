@@ -11,6 +11,10 @@ export interface ApiConfig {
     apiKey: string;
     endpoint: string;
   };
+  openai: {
+    apiKey: string;
+    endpoint: string;
+  };
 }
 
 export interface AppConfig {
@@ -35,12 +39,14 @@ function validateApiKey(key: string, serviceName: string): boolean {
 export function getConfig(): AppConfig {
   const assemblyAIKey = import.meta.env.VITE_ASSEMBLYAI_API_KEY || '';
   const deepgramKey = import.meta.env.VITE_DEEPGRAM_API_KEY || '';
+  const openaiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
   
   // 验证API密钥
   const assemblyAIValid = validateApiKey(assemblyAIKey, 'AssemblyAI');
   const deepgramValid = validateApiKey(deepgramKey, 'Deepgram');
+  const openaiValid = validateApiKey(openaiKey, 'OpenAI');
   
-  if (!assemblyAIValid || !deepgramValid) {
+  if (!assemblyAIValid || !deepgramValid || !openaiValid) {
     console.error('❌ API配置检查失败，请检查 .env 文件中的API密钥配置');
   }
 
@@ -55,6 +61,10 @@ export function getConfig(): AppConfig {
         apiKey: deepgramKey,
         endpoint: import.meta.env.VITE_DEEPGRAM_ENDPOINT || 'wss://api.deepgram.com/v1/listen',
       },
+      openai: {
+        apiKey: openaiKey,
+        endpoint: import.meta.env.VITE_OPENAI_ENDPOINT || 'wss://api.openai.com/v1/realtime',
+      },
     },
   };
 }
@@ -67,8 +77,10 @@ export function isConfigValid(): boolean {
   return Boolean(
     config.api.assemblyAI.apiKey && 
     config.api.deepgram.apiKey &&
+    config.api.openai.apiKey &&
     !config.api.assemblyAI.apiKey.includes('your_') &&
-    !config.api.deepgram.apiKey.includes('your_')
+    !config.api.deepgram.apiKey.includes('your_') &&
+    !config.api.openai.apiKey.includes('your_')
   );
 }
 
@@ -85,6 +97,10 @@ export function getMissingConfig(): string[] {
   
   if (!config.api.deepgram.apiKey || config.api.deepgram.apiKey.includes('your_')) {
     missing.push('VITE_DEEPGRAM_API_KEY');
+  }
+  
+  if (!config.api.openai.apiKey || config.api.openai.apiKey.includes('your_')) {
+    missing.push('VITE_OPENAI_API_KEY');
   }
   
   return missing;

@@ -1,6 +1,6 @@
 /**
  * 实时性能仪表板组件
- * 显示双服务的实时性能对比数据
+ * 显示三服务的实时性能对比数据
  */
 
 import { useEffect, useState } from 'react';
@@ -15,6 +15,7 @@ interface PerformanceDashboardProps {
 interface RealTimeStats {
   assemblyai?: ReturnType<PerformanceTracker['getRealTimeStats']>;
   deepgram?: ReturnType<PerformanceTracker['getRealTimeStats']>;
+  openai?: ReturnType<PerformanceTracker['getRealTimeStats']>;
 }
 
 export function PerformanceDashboard({ performanceTracker, isTracking }: PerformanceDashboardProps) {
@@ -36,6 +37,11 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
       const deepgramStats = performanceTracker.getRealTimeStats('deepgram');
       if (deepgramStats) {
         newStats.deepgram = deepgramStats;
+      }
+
+      const openaiStats = performanceTracker.getRealTimeStats('openai');
+      if (openaiStats) {
+        newStats.openai = openaiStats;
       }
 
       setStats(newStats);
@@ -91,7 +97,7 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
     <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 capitalize">
-          {service === 'assemblyai' ? 'AssemblyAI' : 'Deepgram'}
+          {service === 'assemblyai' ? 'AssemblyAI' : service === 'deepgram' ? 'Deepgram' : 'OpenAI'}
         </h3>
         <div className={`px-2 py-1 rounded-full text-xs font-medium ${getConnectionStatusColor(serviceStats?.connectionStatus)}`}>
           {getConnectionStatusIcon(serviceStats?.connectionStatus)} {serviceStats?.connectionStatus || 'unknown'}
@@ -161,7 +167,7 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
     );
   }
 
-  const services = ['assemblyai', 'deepgram'] as const;
+  const services = ['assemblyai', 'deepgram', 'openai'] as const;
   const availableServices = services.filter(service => stats[service] !== null && stats[service] !== undefined);
 
   if (availableServices.length === 0) {
@@ -177,7 +183,7 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
   return (
     <div className="space-y-6">
       {/* 服务对比卡片 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {availableServices.map(service => (
           <ServiceStatsCard
             key={service}
@@ -189,7 +195,7 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
       </div>
 
       {/* 性能对比总览 */}
-      {availableServices.length >= 2 && (
+      {availableServices.length >= 1 && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">实时性能对比</h3>
           
@@ -203,7 +209,7 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
                   const isWinner = latency > 0 && latency <= Math.min(...availableServices.map(s => stats[s]?.currentLatencyAvg || Infinity));
                   return (
                     <div key={service} className={`flex items-center justify-between p-2 rounded ${isWinner ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
-                      <span className="text-sm capitalize">{service === 'assemblyai' ? 'AssemblyAI' : 'Deepgram'}</span>
+                      <span className="text-sm capitalize">{service === 'assemblyai' ? 'AssemblyAI' : service === 'deepgram' ? 'Deepgram' : 'OpenAI'}</span>
                       <span className={`font-medium ${isWinner ? 'text-green-600' : 'text-gray-600'}`}>
                         {formatLatency(latency)}
                         {isWinner && ' 🏆'}
@@ -224,7 +230,7 @@ export function PerformanceDashboard({ performanceTracker, isTracking }: Perform
                   const isWinner = uptime >= Math.max(...availableServices.map(s => comparison[s]?.stability.uptime || 0));
                   return (
                     <div key={service} className={`flex items-center justify-between p-2 rounded ${isWinner ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}>
-                      <span className="text-sm capitalize">{service === 'assemblyai' ? 'AssemblyAI' : 'Deepgram'}</span>
+                      <span className="text-sm capitalize">{service === 'assemblyai' ? 'AssemblyAI' : service === 'deepgram' ? 'Deepgram' : 'OpenAI'}</span>
                       <span className={`font-medium ${isWinner ? 'text-green-600' : 'text-gray-600'}`}>
                         {Math.round(uptime * 100)}%
                         {isWinner && ' 🏆'}

@@ -140,7 +140,7 @@ export function ResultsSummary({ performanceTracker, isVisible, onClose }: Resul
             </th>
             {services.map(service => (
               <th key={service} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {service === 'assemblyai' ? 'AssemblyAI' : 'Deepgram'}
+                {service === 'assemblyai' ? 'AssemblyAI' : service === 'deepgram' ? 'Deepgram' : 'OpenAI'}
               </th>
             ))}
           </tr>
@@ -252,7 +252,7 @@ export function ResultsSummary({ performanceTracker, isVisible, onClose }: Resul
           </div>
 
           {/* 各服务详细指标 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {services.map(service => {
               const metrics = comparison[service];
               if (!metrics) return null;
@@ -260,7 +260,7 @@ export function ResultsSummary({ performanceTracker, isVisible, onClose }: Resul
               return (
                 <div key={service} className="bg-white border border-gray-200 rounded-lg p-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 capitalize">
-                    {service === 'assemblyai' ? 'AssemblyAI' : 'Deepgram'} 详细指标
+                    {service === 'assemblyai' ? 'AssemblyAI' : service === 'deepgram' ? 'Deepgram' : 'OpenAI'} 详细指标
                   </h3>
                   
                   <div className="space-y-4">

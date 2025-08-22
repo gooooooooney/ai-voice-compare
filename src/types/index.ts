@@ -2,7 +2,7 @@
  * 核心类型定义
  */
 
-export type ServiceType = 'assemblyai' | 'deepgram';
+export type ServiceType = 'assemblyai' | 'deepgram' | 'openai';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -93,12 +93,14 @@ export interface AppState {
   connections: {
     assemblyai: ServiceConnection;
     deepgram: ServiceConnection;
+    openai: ServiceConnection;
   };
   
   // 转录结果
   transcriptions: {
     assemblyai: TranscriptionResult[];
     deepgram: TranscriptionResult[];
+    openai: TranscriptionResult[];
   };
 
   // 原始转录数据存储
@@ -108,6 +110,7 @@ export interface AppState {
   metrics: {
     assemblyai: Partial<PerformanceMetrics>;
     deepgram: Partial<PerformanceMetrics>;
+    openai: Partial<PerformanceMetrics>;
   };
   
   // UI状态
@@ -127,6 +130,7 @@ export interface ComparisonResult {
   metrics: {
     assemblyai: PerformanceMetrics;
     deepgram: PerformanceMetrics;
+    openai: PerformanceMetrics;
   };
   recommendation: {
     preferred: ServiceType | 'tie';

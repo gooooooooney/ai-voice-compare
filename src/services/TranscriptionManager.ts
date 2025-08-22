@@ -1,11 +1,12 @@
 /**
  * 转录服务管理器
- * 统一管理 AssemblyAI 和 Deepgram 服务，协调双服务并行工作
+ * 统一管理 AssemblyAI、Deepgram 和 OpenAI 服务，协调多服务并行工作
  */
 
 import { AudioRecorder } from './AudioRecorder';
 import { AssemblyAIService } from './AssemblyAIService';
 import { DeepgramService } from './DeepgramService';
+import { OpenAIRealtimeService } from './OpenAIRealtimeService';
 import { getConfig, getMissingConfig } from '@/config/env';
 import { 
   ServiceType, 
@@ -21,6 +22,7 @@ import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/constants';
 export interface TranscriptionManagerOptions {
   enableAssemblyAI?: boolean;
   enableDeepgram?: boolean;
+  enableOpenAI?: boolean;
   audioOptions?: {
     sampleRate?: number;
     channels?: number;
@@ -51,6 +53,7 @@ export class TranscriptionManager {
   private audioRecorder: AudioRecorder;
   private assemblyAIService: AssemblyAIService | null = null;
   private deepgramService: DeepgramService | null = null;
+  private openaiService: OpenAIRealtimeService | null = null;
   
   private isInitialized = false;
   private isRecording = false;
@@ -100,6 +103,18 @@ export class TranscriptionManager {
       }
     }
     
+    // 初始化 OpenAI 服务
+    if (options.enableOpenAI !== false && config.api.openai.apiKey) {
+      try {
+        this.openaiService = new OpenAIRealtimeService({
+          apiKey: config.api.openai.apiKey,
+          sampleRate: options.audioOptions?.sampleRate,
+        });
+      } catch (error) {
+        console.error('❌ Failed to initialize OpenAI service:', error);
+      }
+    }
+    
     // 初始化应用状态
     this.currentState = this.createInitialState();
     
@@ -129,15 +144,21 @@ export class TranscriptionManager {
           status: 'disconnected',
           reconnectAttempts: 0,
         },
+        openai: {
+          status: 'disconnected',
+          reconnectAttempts: 0,
+        },
       },
       transcriptions: {
         assemblyai: [],
         deepgram: [],
+        openai: [],
       },
       rawTranscripts: [],
       metrics: {
         assemblyai: {},
         deepgram: {},
+        openai: {},
       },
       ui: {
         showMetrics: false,
@@ -194,6 +215,23 @@ export class TranscriptionManager {
 
       this.deepgramService.onError((error) => {
         this.notifyError('deepgram', error);
+      });
+    }
+
+    // OpenAI 服务事件
+    if (this.openaiService) {
+      this.openaiService.onConnectionStatusChange((status) => {
+        this.updateConnectionStatus('openai', status);
+      });
+
+      this.openaiService.onTranscript((result) => {
+        this.addTranscriptionResult('openai', result);
+        this.storeRawTranscript('openai', null, result); // OpenAI doesn't provide raw data in current setup
+        this.notifyTranscript('openai', result);
+      });
+
+      this.openaiService.onError((error) => {
+        this.notifyError('openai', error);
       });
     }
   }
@@ -261,6 +299,10 @@ export class TranscriptionManager {
         connectionPromises.push(this.deepgramService.connect());
       }
 
+      if (this.openaiService) {
+        connectionPromises.push(this.openaiService.connect());
+      }
+
       // 等待所有服务连接
       await Promise.allSettled(connectionPromises);
       
@@ -292,6 +334,10 @@ export class TranscriptionManager {
       
       if (this.deepgramService) {
         disconnectionPromises.push(this.deepgramService.disconnect());
+      }
+
+      if (this.openaiService) {
+        disconnectionPromises.push(this.openaiService.disconnect());
       }
 
       // 等待所有服务断开
@@ -382,6 +428,10 @@ export class TranscriptionManager {
         disconnectionPromises.push(this.deepgramService.disconnect());
       }
 
+      if (this.openaiService) {
+        disconnectionPromises.push(this.openaiService.disconnect());
+      }
+
       // 等待所有服务断开
       await Promise.allSettled(disconnectionPromises);
 
@@ -417,15 +467,25 @@ export class TranscriptionManager {
     if (this.deepgramService) {
       this.deepgramService.sendAudio(audioData);
     }
+
+    // 发送到 OpenAI
+    if (this.openaiService) {
+      this.openaiService.sendAudio(audioData);
+    }
   }
 
   /**
    * 更新连接状态
    */
   private updateConnectionStatus(service: ServiceType, status: ConnectionStatus): void {
-    const serviceInfo = service === 'assemblyai' 
-      ? this.assemblyAIService?.getConnectionInfo()
-      : this.deepgramService?.getConnectionInfo();
+    let serviceInfo;
+    if (service === 'assemblyai') {
+      serviceInfo = this.assemblyAIService?.getConnectionInfo();
+    } else if (service === 'deepgram') {
+      serviceInfo = this.deepgramService?.getConnectionInfo();
+    } else if (service === 'openai') {
+      serviceInfo = this.openaiService?.getConnectionInfo();
+    }
 
     const connection: ServiceConnection = {
       status,
@@ -471,7 +531,7 @@ export class TranscriptionManager {
    */
   private storeRawTranscript(service: ServiceType, rawData: any, processedResult: TranscriptionResult): void {
     const rawTranscriptData: RawTranscriptData = {
-      id: `${service}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `${service}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       service,
       timestamp: processedResult.timestamp,
       rawData,
@@ -644,6 +704,7 @@ export class TranscriptionManager {
       audioStatus: this.audioRecorder.getRecordingStatus(),
       assemblyAI: this.assemblyAIService?.getConnectionInfo() || null,
       deepgram: this.deepgramService?.getConnectionInfo() || null,
+      openai: this.openaiService?.getConnectionInfo() || null,
     };
   }
 
@@ -651,6 +712,7 @@ export class TranscriptionManager {
     const services: ServiceType[] = [];
     if (this.assemblyAIService) services.push('assemblyai');
     if (this.deepgramService) services.push('deepgram');
+    if (this.openaiService) services.push('openai');
     return services;
   }
 
@@ -660,7 +722,8 @@ export class TranscriptionManager {
   areServicesConnected(): boolean {
     const assemblyAIConnected = !this.assemblyAIService || this.currentState.connections.assemblyai.status === 'connected';
     const deepgramConnected = !this.deepgramService || this.currentState.connections.deepgram.status === 'connected';
-    return assemblyAIConnected && deepgramConnected;
+    const openaiConnected = !this.openaiService || this.currentState.connections.openai.status === 'connected';
+    return assemblyAIConnected && deepgramConnected && openaiConnected;
   }
 
   /**
@@ -708,6 +771,11 @@ export class TranscriptionManager {
     if (this.deepgramService) {
       this.deepgramService.dispose();
       this.deepgramService = null;
+    }
+
+    if (this.openaiService) {
+      this.openaiService.dispose();
+      this.openaiService = null;
     }
     
     // 清理音频录制器

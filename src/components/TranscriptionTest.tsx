@@ -93,12 +93,15 @@ export const TranscriptionTest = () => {
 
     // 音量监听（包含性能跟踪）
     newManager.onVolumeChange((volume: number) => {
-      // 为两个服务都更新音频质量
+      // 为三个服务都更新音频质量
       if (appState?.connections?.assemblyai?.status === 'connected') {
         performanceCallbacksRef.current.onVolumeChange('assemblyai', volume);
       }
       if (appState?.connections?.deepgram?.status === 'connected') {
         performanceCallbacksRef.current.onVolumeChange('deepgram', volume);
+      }
+      if (appState?.connections?.openai?.status === 'connected') {
+        performanceCallbacksRef.current.onVolumeChange('openai', volume);
       }
     });
 
@@ -226,6 +229,7 @@ export const TranscriptionTest = () => {
           transcriptions: {
             assemblyai: [],
             deepgram: [],
+            openai: [],
           },
           rawTranscripts: [],
         });
@@ -263,12 +267,14 @@ export const TranscriptionTest = () => {
   const connections = appState?.connections || {
     assemblyai: { status: 'disconnected' as ConnectionStatus, reconnectAttempts: 0 },
     deepgram: { status: 'disconnected' as ConnectionStatus, reconnectAttempts: 0 },
+    openai: { status: 'disconnected' as ConnectionStatus, reconnectAttempts: 0 },
   };
   const transcriptions = appState?.transcriptions || {
     assemblyai: [],
     deepgram: [],
+    openai: [],
   };
-  const hasTranscriptions = transcriptions.assemblyai.length > 0 || transcriptions.deepgram.length > 0;
+  const hasTranscriptions = transcriptions.assemblyai.length > 0 || transcriptions.deepgram.length > 0 || transcriptions.openai.length > 0;
 
   return (
     <div className="max-w-7xl mx-auto p-4 space-y-6">

@@ -12,6 +12,7 @@ interface RecordingControlsProps {
   connections: {
     assemblyai: { status: ConnectionStatus; reconnectAttempts: number };
     deepgram: { status: ConnectionStatus; reconnectAttempts: number };
+    openai: { status: ConnectionStatus; reconnectAttempts: number };
   };
   volume: number;
   onConnectServices: () => Promise<void>;
@@ -126,8 +127,8 @@ export function RecordingControls({
   };
 
   // 检查服务连接状态
-  const servicesConnected = connections.assemblyai.status === 'connected' && connections.deepgram.status === 'connected';
-  const anyServiceDisconnected = connections.assemblyai.status === 'disconnected' || connections.deepgram.status === 'disconnected';
+  const servicesConnected = connections.assemblyai.status === 'connected' && connections.deepgram.status === 'connected' && connections.openai.status === 'connected';
+  const anyServiceDisconnected = connections.assemblyai.status === 'disconnected' || connections.deepgram.status === 'disconnected' || connections.openai.status === 'disconnected';
 
   const canConnectServices = anyServiceDisconnected && !isConnecting && !isDisconnecting && !isRecording;
   const canDisconnectServices = servicesConnected && !isConnecting && !isDisconnecting && !isRecording;
@@ -287,10 +288,10 @@ export function RecordingControls({
           </div>
 
           {/* 各服务详细状态 */}
-          <div className="grid grid-cols-2 gap-3">
-            {(['assemblyai', 'deepgram'] as const).map(service => {
+          <div className="grid grid-cols-3 gap-2">
+            {(['assemblyai', 'deepgram', 'openai'] as const).map(service => {
               const connection = connections[service];
-              const serviceName = service === 'assemblyai' ? 'AssemblyAI' : 'Deepgram';
+              const serviceName = service === 'assemblyai' ? 'AssemblyAI' : service === 'deepgram' ? 'Deepgram' : 'OpenAI';
               
               return (
                 <div key={service} className="relative">

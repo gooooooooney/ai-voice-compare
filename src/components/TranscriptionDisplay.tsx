@@ -1,6 +1,6 @@
 /**
- * 双服务转录结果显示组件
- * 实时显示AssemblyAI和Deepgram的转录结果对比
+ * 三服务转录结果显示组件
+ * 实时显示AssemblyAI、Deepgram和OpenAI的转录结果对比
  */
 
 import { useEffect, useRef } from 'react';
@@ -10,6 +10,7 @@ interface TranscriptionDisplayProps {
   transcriptions: {
     assemblyai: TranscriptionResult[];
     deepgram: TranscriptionResult[];
+    openai: TranscriptionResult[];
   };
   isRecording: boolean;
   volume?: number;
@@ -33,11 +34,11 @@ function ServicePanel({ service, results, isRecording, volume = 0 }: ServicePane
   }, [results]);
 
   const getServiceDisplayName = (service: ServiceType) => {
-    return service === 'assemblyai' ? 'AssemblyAI' : 'Deepgram';
+    return service === 'assemblyai' ? 'AssemblyAI' : service === 'deepgram' ? 'Deepgram' : 'OpenAI';
   };
 
   const getServiceColor = (service: ServiceType) => {
-    return service === 'assemblyai' ? 'blue' : 'purple';
+    return service === 'assemblyai' ? 'blue' : service === 'deepgram' ? 'purple' : 'green';
   };
 
 
@@ -178,7 +179,7 @@ function ServicePanel({ service, results, isRecording, volume = 0 }: ServicePane
 
 export function TranscriptionDisplay({ transcriptions, isRecording, volume = 0 }: TranscriptionDisplayProps) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
       <ServicePanel
         service="assemblyai"
         results={transcriptions.assemblyai}
@@ -189,6 +190,13 @@ export function TranscriptionDisplay({ transcriptions, isRecording, volume = 0 }
       <ServicePanel
         service="deepgram"
         results={transcriptions.deepgram}
+        isRecording={isRecording}
+        volume={volume}
+      />
+
+      <ServicePanel
+        service="openai"
+        results={transcriptions.openai}
         isRecording={isRecording}
         volume={volume}
       />

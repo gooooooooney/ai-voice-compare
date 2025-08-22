@@ -181,7 +181,6 @@ export class PerformanceTracker {
     const data = this.performanceData.get(service);
     if (!data) return null;
 
-    const recentResults = data.transcriptionResults.slice(-10);
     const recentLatencies = data.latencySamples.slice(-10);
     
     return {

@@ -39,7 +39,7 @@ export class OpenAIRealtimeService {
   private reconnectAttempts = 0;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private isManualDisconnect = false; // 标记是否为主动断开
-  private sessionToken: string | null = null;
+
   
   private transcriptCallbacks: TranscriptCallback[] = [];
   private errorCallbacks: ErrorCallback[] = [];
@@ -58,11 +58,7 @@ export class OpenAIRealtimeService {
 
     this.validateApiKey();
     
-    // 创建 OpenAI 客户端 - 用于后端 API 调用
-    // this.openaiClient = new OpenAI({
-    //   apiKey: this.options.apiKey,
-    //   dangerouslyAllowBrowser: true, // 允许在浏览器环境中运行
-    // });
+   
   }
 
   /**
@@ -112,15 +108,18 @@ export class OpenAIRealtimeService {
       }
 
       this.setConnectionStatus('connecting');
-      
-      // 获取临时会话令牌
       const { sessionKey } = await this.getSessionToken();
+      // 创建 OpenAI 客户端 - 用于后端 API 调用
+      this.openaiClient = new OpenAI({
+        apiKey: sessionKey,
+        dangerouslyAllowBrowser: true, // 允许在浏览器环境中运行
+      });
+      
       
       // 创建 OpenAI Realtime WebSocket 客户端
       this.client = new OpenAIRealtimeWebSocket({ 
         model: this.options.model,
-        apiKey: sessionKey, // 使用会话令牌而不是 API 密钥
-      });
+      }, this.openaiClient);
 
       // 设置事件监听器
       this.setupEventListeners();

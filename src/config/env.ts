@@ -22,6 +22,43 @@ export interface AppConfig {
   api: ApiConfig;
 }
 
+// 存储运行时配置
+let runtimeConfig: Record<string, string> | null = null;
+
+/**
+ * 从服务器获取配置
+ */
+async function fetchRuntimeConfig(): Promise<Record<string, string>> {
+  if (runtimeConfig) {
+    return runtimeConfig;
+  }
+
+  try {
+    const response = await fetch('/api/config');
+    if (!response.ok) {
+      throw new Error('Failed to fetch config');
+    }
+    runtimeConfig = await response.json();
+    return runtimeConfig!;
+  } catch (error) {
+    console.error('Failed to fetch runtime config:', error);
+    return {};
+  }
+}
+
+/**
+ * 获取环境变量值
+ */
+function getEnvValue(key: string): string {
+  // 开发环境使用 import.meta.env
+  if (import.meta.env?.MODE === 'development') {
+    return import.meta.env[key] || '';
+  }
+  
+  // 生产环境使用运行时配置
+  return runtimeConfig?.[key] || '';
+}
+
 /**
  * 验证API密钥格式
  */
@@ -36,10 +73,15 @@ function validateApiKey(key: string, serviceName: string): boolean {
 /**
  * 获取并验证环境配置
  */
-export function getConfig(): AppConfig {
-  const assemblyAIKey = import.meta.env.VITE_ASSEMBLYAI_API_KEY || '';
-  const deepgramKey = import.meta.env.VITE_DEEPGRAM_API_KEY || '';
-  const openaiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
+export async function getConfig(): Promise<AppConfig> {
+  // 生产环境先获取运行时配置
+  if (import.meta.env?.MODE !== 'development' && !runtimeConfig) {
+    await fetchRuntimeConfig();
+  }
+
+  const assemblyAIKey = getEnvValue('VITE_ASSEMBLYAI_API_KEY');
+  const deepgramKey = getEnvValue('VITE_DEEPGRAM_API_KEY');
+  const openaiKey = getEnvValue('VITE_OPENAI_API_KEY');
   
   // 验证API密钥
   const assemblyAIValid = validateApiKey(assemblyAIKey, 'AssemblyAI');
@@ -51,19 +93,19 @@ export function getConfig(): AppConfig {
   }
 
   return {
-    env: (import.meta.env.VITE_APP_ENV as 'development' | 'production') || 'development',
+    env: import.meta.env?.MODE === 'production' ? 'production' : 'development',
     api: {
       assemblyAI: {
         apiKey: assemblyAIKey,
-        endpoint: import.meta.env.VITE_ASSEMBLYAI_ENDPOINT || 'wss://api.assemblyai.com/v2/realtime/ws',
+        endpoint: getEnvValue('VITE_ASSEMBLYAI_ENDPOINT') || 'wss://api.assemblyai.com/v2/realtime/ws',
       },
       deepgram: {
         apiKey: deepgramKey,
-        endpoint: import.meta.env.VITE_DEEPGRAM_ENDPOINT || 'wss://api.deepgram.com/v1/listen',
+        endpoint: getEnvValue('VITE_DEEPGRAM_ENDPOINT') || 'wss://api.deepgram.com/v1/listen',
       },
       openai: {
         apiKey: openaiKey,
-        endpoint: import.meta.env.VITE_OPENAI_ENDPOINT || 'wss://api.openai.com/v1/realtime',
+        endpoint: getEnvValue('VITE_OPENAI_ENDPOINT') || 'wss://api.openai.com/v1/realtime',
       },
     },
   };
@@ -72,8 +114,8 @@ export function getConfig(): AppConfig {
 /**
  * 检查配置是否有效
  */
-export function isConfigValid(): boolean {
-  const config = getConfig();
+export async function isConfigValid(): Promise<boolean> {
+  const config = await getConfig();
   return Boolean(
     config.api.assemblyAI.apiKey && 
     config.api.deepgram.apiKey &&
@@ -87,8 +129,8 @@ export function isConfigValid(): boolean {
 /**
  * 获取缺失的配置项
  */
-export function getMissingConfig(): string[] {
-  const config = getConfig();
+export async function getMissingConfig(): Promise<string[]> {
+  const config = await getConfig();
   const missing: string[] = [];
   
   if (!config.api.assemblyAI.apiKey || config.api.assemblyAI.apiKey.includes('your_')) {
@@ -104,4 +146,13 @@ export function getMissingConfig(): string[] {
   }
   
   return missing;
+}
+
+/**
+ * 初始化配置（在应用启动时调用）
+ */
+export async function initConfig(): Promise<void> {
+  if (import.meta.env?.MODE !== 'development') {
+    await fetchRuntimeConfig();
+  }
 }

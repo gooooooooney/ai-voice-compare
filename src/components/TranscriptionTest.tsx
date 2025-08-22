@@ -24,6 +24,7 @@ export const TranscriptionTest = () => {
   const [appState, setAppState] = useState<AppState | null>(null);
   const [configValid, setConfigValid] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [missingKeys, setMissingKeys] = useState<string[]>([]);
   
   // UI 状态
   const [activeView, setActiveView] = useState<'dashboard' | 'transcription'>('dashboard');
@@ -48,13 +49,18 @@ export const TranscriptionTest = () => {
 
   // 检查API配置
   useEffect(() => {
-    const valid = isConfigValid();
-    setConfigValid(valid);
-    
-    if (!valid) {
-      const missing = getMissingConfig();
-      setError(`API配置缺失: ${missing.join(', ')}`);
+    async function checkConfig() {
+      const valid = await isConfigValid();
+      setConfigValid(valid);
+      
+      if (!valid) {
+        const missing = await getMissingConfig();
+        setMissingKeys(missing);
+        setError(`API配置缺失: ${missing.join(', ')}`);
+      }
     }
+    
+    checkConfig();
   }, []);
 
   // 初始化TranscriptionManager
@@ -248,8 +254,8 @@ export const TranscriptionTest = () => {
             请确保在 .env 文件中正确配置了以下API密钥：
           </p>
           <div className="bg-gray-100 p-4 rounded-md text-left font-mono text-sm mb-6">
-            {getMissingConfig().map(key => (
-              <div key={key}>VITE_{key}</div>
+            {missingKeys.map(key => (
+              <div key={key}>{key}</div>
             ))}
           </div>
           <p className="text-sm text-gray-500">

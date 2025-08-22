@@ -1,4 +1,42 @@
-# Coolify 部署指南
+# 部署指南
+
+## 本地 Docker 部署
+
+### 1. 准备环境变量
+
+```bash
+# 复制环境变量示例文件
+cp .env.example .env
+
+# 编辑 .env 文件，填入你的 API 密钥
+```
+
+### 2. 使用 Docker 运行脚本
+
+```bash
+# 给脚本执行权限
+chmod +x docker-run.sh
+
+# 运行应用
+./docker-run.sh
+```
+
+### 3. 手动 Docker 命令
+
+```bash
+# 构建镜像
+docker build -t ai-voice-compare .
+
+# 运行容器（使用 --env-file 传递环境变量）
+docker run -d \
+  --name ai-voice-compare \
+  -p 3001:3001 \
+  --env-file .env \
+  --restart unless-stopped \
+  ai-voice-compare
+```
+
+## Coolify 部署指南
 
 ## 部署步骤
 

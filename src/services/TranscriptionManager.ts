@@ -7,7 +7,7 @@ import { AudioRecorder } from './AudioRecorder';
 import { AssemblyAIService } from './AssemblyAIService';
 import { DeepgramService } from './DeepgramService';
 import { OpenAIRealtimeService } from './OpenAIRealtimeService';
-import { getConfig, getMissingConfig } from '@/config/env';
+import { getConfig, getMissingConfig, initConfig } from '@/config/env';
 import { 
   ServiceType, 
   ConnectionStatus, 
@@ -69,16 +69,29 @@ export class TranscriptionManager {
   private currentState: AppState;
   
   constructor(options: TranscriptionManagerOptions = {}) {
-    const config = getConfig();
+    // 初始化音频录制器
+    this.audioRecorder = new AudioRecorder(options.audioOptions);
+    
+    // 初始化应用状态
+    this.currentState = this.createInitialState();
+    
+    // 异步初始化服务
+    this.initializeServices(options);
+  }
+  
+  /**
+   * 异步初始化服务
+   */
+  private async initializeServices(options: TranscriptionManagerOptions): Promise<void> {
+    // 初始化配置
+    await initConfig();
+    const config = await getConfig();
     
     // 检查配置
-    const missingConfig = getMissingConfig();
+    const missingConfig = await getMissingConfig();
     if (missingConfig.length > 0) {
       console.warn('⚠️ Missing API configuration:', missingConfig);
     }
-    
-    // 初始化音频录制器
-    this.audioRecorder = new AudioRecorder(options.audioOptions);
     
     // 初始化 AssemblyAI 服务
     if (options.enableAssemblyAI !== false && config.api.assemblyAI.apiKey) {
@@ -115,8 +128,8 @@ export class TranscriptionManager {
       }
     }
     
-    // 初始化应用状态
-    this.currentState = this.createInitialState();
+    // 更新状态
+    this.updateState(this.createInitialState());
     
     // 设置事件监听器
     this.setupEventListeners();
